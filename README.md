@@ -16,6 +16,8 @@ This repository includes a GitHub Actions workflow that builds and publishes the
 
 GitHub Pages only hosts static files; it cannot run the Express API. To enable live data, deploy `server/` to a trusted Node.js host, configure `RAILRADAR_API_KEY` as a server-side secret, and set the GitHub repository variable `VITE_API_BASE_URL` to that API's HTTPS origin (for example, `https://api.example.com`). Configure the API's `APP_ORIGINS` to include `https://realrishiiscool.github.io`. Do not put provider keys in `VITE_*` variables: those are embedded in public browser code. If no API URL is configured, the hosted frontend reports that live data is unavailable instead of exposing a key or pretending the API runs on Pages.
 
+For Render, the repository's `render.yaml` defines a free Node web service and asks for `RAILRADAR_API_KEY` as a private value during setup. In Render, create a Blueprint from this repository and provide the key in Render's prompt. After it deploys, copy the service's HTTPS address into the GitHub repository variable `VITE_API_BASE_URL` under **Settings → Secrets and variables → Actions → Variables**, then rerun the **Deploy GitHub Pages** workflow so Vite can include that address in its build. The API accepts browser requests only from the configured Pages origin and limits requests per client.
+
 The optional `.env` is excluded from Git. The project manifest is `package.json` (not `package.jison`).
 
 ## Data providers

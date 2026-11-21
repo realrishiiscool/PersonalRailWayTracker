@@ -6,9 +6,29 @@ import 'dotenv/config';
 const app = express();
 const host = process.env.HOST || '127.0.0.1';
 const port = Number(process.env.PORT || 4000);
+if (process.env.RENDER) app.set('trust proxy', 1);
 const allowedOrigins = new Set((process.env.APP_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173').split(',').map(origin => origin.trim()).filter(Boolean));
 app.use(cors({ origin(origin, callback) { callback(null, !origin || allowedOrigins.has(origin)); }, methods: ['GET'], allowedHeaders: ['Content-Type'] }));
 app.use(express.json());
+const requestWindows = new Map();
+app.use('/api', (req, res, next) => {
+  const now = Date.now();
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  let window = requestWindows.get(ip);
+  if (!window || window.expiresAt <= now) {
+    window = { count: 0, expiresAt: now + 60_000 };
+    requestWindows.set(ip, window);
+  }
+  window.count += 1;
+  if (window.count > 60) {
+    res.set('Retry-After', String(Math.max(1, Math.ceil((window.expiresAt - now) / 1000))));
+    return res.status(429).json({ error: 'Too many requests. Please wait a minute and try again.', code: 'RATE_LIMITED' });
+  }
+  if (requestWindows.size > 1000) {
+    for (const [key, value] of requestWindows) if (value.expiresAt <= now) requestWindows.delete(key);
+  }
+  next();
+});
 const providerBase = (process.env.RAILRADAR_API_BASE_URL || process.env.RAILWAY_API_BASE_URL || 'https://api.railradar.in').replace(/\/$/, '');
 const providerKey = process.env.RAILRADAR_API_KEY || process.env.RAILWAY_API_KEY || '';
 const cache = new Map();
